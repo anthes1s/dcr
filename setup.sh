@@ -61,6 +61,7 @@ if [ -z "$EMAIL" ]; then
     exit 1
 fi
 
+
 # Check if ran with root
 if [ "$(id -u)" -ne 0 ]; then
   echo "[INFO] UID: $(id -u)"
@@ -143,6 +144,8 @@ CONFIG_FILE="/etc/nginx/sites-available/$DOMAIN"
 TEMP_CONFIG_FILE=$(mktemp)
 
 echo "[INFO] Running 'envsubst' on nginx configuration template"
+
+export DOMAIN
 envsubst '$DOMAIN' < "$NGINX_CONFIG_TEMPLATE" >  "$TEMP_CONFIG_FILE"
 ENVSUBST_STATUS=$?
 
