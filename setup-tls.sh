@@ -9,22 +9,16 @@ usage() {
     echo ""
     echo "This script requires all four options to be set."
     echo "Options:"
-    echo "  -u <dcr_user>     Set DCR_LOGIN (Docker Registry Login)"
-    echo "  -p <dcr_password> Set DCR_PASSWORD"
     echo "  -d <domain>       Set DOMAIN"
     echo "  -e <email>        Set EMAIL"
     echo "  -h                Display this help message"
 }
 
-DCR_LOGIN=""
-DCR_PASSWORD=""
 DOMAIN=""
 EMAIL=""
 
-while getopts "u:p:d:e:h" opt; do
+while getopts "d:e:h" opt; do
     case "$opt" in
-        u) DCR_LOGIN="$OPTARG" ;;
-        p) DCR_PASSWORD="$OPTARG" ;;
         d) DOMAIN="$OPTARG" ;;
         e) EMAIL="$OPTARG" ;;
         h) usage; exit 0 ;;
@@ -40,16 +34,6 @@ while getopts "u:p:d:e:h" opt; do
             ;;
     esac
 done
-
-if [ -z "$DCR_LOGIN" ]; then
-    echo "[ERROR] Missing required option -u (DCR_LOGIN)." >&2
-    exit 1
-fi
-
-if [ -z "$DCR_PASSWORD" ]; then
-    echo "[ERROR] Missing required option -p (DCR_PASSWORD)." >&2
-    exit 1
-fi
 
 if [ -z "$DOMAIN" ]; then
     echo "[ERROR] Missing required option -d (DOMAIN)." >&2
@@ -91,30 +75,6 @@ sudo apt-get upgrade -y > /dev/null 2>&1
 
 echo "[INFO] Installing envsubst utility"
 sudo apt-get install gettext-base -y > /dev/null 2>&1
-
-INSTALL_DOCKER_SCRIPT="./docker/setup.sh"
-
-# Check if Docker is installed, if not, install it
-if ! command -v docker > /dev/null 2>&1; then
-  echo "[WARN] Docker is not installed"
-  echo "[INFO] Installing Docker..."
-
-  "$INSTALL_DOCKER_SCRIPT" > /dev/null 2>&1
-  
-  INSTALL_STATUS=$?
-
-  if [ $INSTALL_STATUS -ne 0 ]; then
-    echo "[FATAL] Docker installation failed with code $INSTALL_STATUS." >&2
-    exit 1
-  fi
-fi
-
-if ! command -v docker > /dev/null 2>&1; then
-  echo "[FATAL] Docker installation failed."
-  exit 1
-fi
-
-echo "[INFO] Docker successfully installed"
 
 # Check if Nginx is installed, if not, install it
 echo "[INFO] Installing Nginx..."
@@ -186,47 +146,3 @@ if [ $CERTBOT_STATUS -ne 0 ]; then
 fi
 
 echo "[INFO] Successfully finished setting up certbot via nginx"
-
-# Create DCR credentials via httpd
-
-AUTH_FILE_NAME="htpasswd"
-AUTH_PATH="$(pwd)/auth"
-AUTH_FILE="$AUTH_PATH/$AUTH_FILE_NAME"
-
-if [ ! -f "$AUTH_FILE" ]; then
-  mkdir -p "$AUTH_PATH"
-
-  echo "[INFO] Creating credentials for DCR"
-  printf "%s" "$DCR_PASSWORD" | sudo docker run --rm -i -v "$AUTH_PATH":/etc/auth httpd:latest htpasswd -c -B -i /etc/auth/"$AUTH_FILE_NAME" "$DCR_LOGIN" > /dev/null 2>&1
-  HTTPD_STATUS=$?
-
-  if [ "$HTTPD_STATUS" -ne 0 ]; then
-    echo "[FATAL] Failed to create credential via httpd"
-    exit 1
-  fi
-fi
-
-# Start Docker Registry
-echo "[INFO] Launching DCR..."
-docker stop registry > /dev/null 2>&1 || true
-docker rm registry > /dev/null 2>&1 || true
-
-docker run --restart=always \
-  --name registry \
-  -p 5000:5000 \
-  -v "$(pwd)/data":/var/lib/registry \
-  -v "/etc/letsencrypt/live/$DOMAIN/fullchain.pem":/certs/domain.crt:ro \
-  -v "/etc/letsencrypt/live/$DOMAIN/privkey.pem":/certs/domain.key:ro \
-  -v "$(pwd)/auth/htpasswd":/auth/htpasswd:ro \
-  -e REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry \
-  -e REGISTRY_AUTH=htpasswd \
-  -e REGISTRY_AUTH_HTPASSWD_REALM="Registry Realm" \
-  -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd \
-  -e REGISTRY_HTTP_ADDR=0.0.0.0:5000 \
-  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
-  -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
-  --label com.centurylinklabs.watchtower.enable="false" \
-  -d \
-  registry:3
-
-echo "[INFO] Successfully finished setting up DCR!"
