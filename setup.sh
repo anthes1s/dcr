@@ -202,7 +202,7 @@ if [ ! -f "$AUTH_FILE" ]; then
   mkdir -p "$AUTH_PATH"
 
   echo "[INFO] Creating credentials for DCR"
-  printf "%s" "$DCR_PASSWORD" | sudo docker run --rm -i -v "$AUTH_PATH":/etc/auth httpd:latest htpasswd -c -i /etc/auth/"$AUTH_FILE_NAME" "$DCR_LOGIN" > /dev/null 2>&1
+  printf "%s" "$DCR_PASSWORD" | sudo docker run --rm -i -v "$AUTH_PATH":/etc/auth httpd:latest htpasswd -c -B -i /etc/auth/"$AUTH_FILE_NAME" "$DCR_LOGIN" > /dev/null 2>&1
   HTTPD_STATUS=$?
 
   if [ "$HTTPD_STATUS" -ne 0 ]; then
