@@ -80,8 +80,7 @@ if [ ! -f /etc/os-release ]; then
 fi
 
 CURRENT_DISTRO_ID=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
-
-if [[ "$CURRENT_DISTRO_ID" != "ubuntu" && "$CURRENT_DISTRO_ID" != "debian" ]]; then
+if [ "$CURRENT_DISTRO_ID" != "ubuntu" ] && [ "$CURRENT_DISTRO_ID" != "debian" ]; then
     echo "[ERROR] This script is only supported on Ubuntu or Debian." >&2
     exit 1
 fi
@@ -100,7 +99,7 @@ sudo apt-get install gettext-base -y > /dev/null 2>&1
 INSTALL_DOCKER_SCRIPT="./docker/setup.sh"
 
 # Check if Docker is installed, if not, install it
-if ! command -v docker --version > /dev/null 2>&1; then
+if ! command -v docker > /dev/null 2>&1; then
   echo "[WARN] Docker is not installed"
   echo "[INFO] Installing Docker..."
 
@@ -114,7 +113,7 @@ if ! command -v docker --version > /dev/null 2>&1; then
   fi
 fi
 
-if ! command -v docker --version > /dev/null 2>&1; then
+if ! command -v docker > /dev/null 2>&1; then
   echo "[FATAL] Docker installation failed."
   exit 1
 fi
@@ -206,8 +205,7 @@ if [ ! -f "$AUTH_FILE" ]; then
   mkdir -p "$AUTH_PATH"
 
   echo "[INFO] Creating credentials for DCR"
-  
-  echo -n "$DCR_PASSWORD" | sudo docker run --rm -i -v "$AUTH_PATH":/etc/auth httpd:latest htpasswd -c -i /etc/auth/"$AUTH_FILE_NAME" "$DCR_LOGIN" > /dev/null 2>&1
+  printf "%s" "$DCR_PASSWORD" | sudo docker run --rm -i -v "$AUTH_PATH":/etc/auth httpd:latest htpasswd -c -i /etc/auth/"$AUTH_FILE_NAME" "$DCR_LOGIN" > /dev/null 2>&1
   HTTPD_STATUS=$?
 
   if [ "$HTTPD_STATUS" -ne 0 ]; then
