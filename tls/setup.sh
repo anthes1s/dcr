@@ -5,10 +5,11 @@ set -e
 echo "[INFO] MAKE SURE YOU'VE SET CNAME/A TYPE RECORDS IN YOUR DOMAIN NAME REGISTRAR"
 
 usage() {
-    echo "Usage: $0 -u <user> -p <password> -d <domain> -e <email>"
+    echo "Usage: $0 -u <user> -p <password> -d <domain> -e <email> -P <port>"
     echo ""
     echo "This script requires all four options to be set."
     echo "Options:"
+    echo "  -P <port>        Set PORT"
     echo "  -d <domain>       Set DOMAIN"
     echo "  -e <email>        Set EMAIL"
     echo "  -h                Display this help message"
@@ -16,11 +17,13 @@ usage() {
 
 DOMAIN=""
 EMAIL=""
+PORT=""
 
-while getopts "d:e:h" opt; do
+while getopts "P:d:e:h" opt; do
     case "$opt" in
         d) DOMAIN="$OPTARG" ;;
         e) EMAIL="$OPTARG" ;;
+        P) PORT="$OPTARG" ;;
         h) usage; exit 0 ;;
         \?) 
             echo "Error: Invalid option -$OPTARG" >&2
@@ -45,6 +48,11 @@ if [ -z "$EMAIL" ]; then
     exit 1
 fi
 
+if [ -z "$PORT" ]; then
+    echo "[ERROR] Missing required option -P (PORT)." >&2
+    exit 1
+fi
+
 
 # Check if ran with root
 if [ "$(id -u)" -ne 0 ]; then
@@ -64,14 +72,6 @@ if [ "$CURRENT_DISTRO_ID" != "ubuntu" ] && [ "$CURRENT_DISTRO_ID" != "debian" ];
     echo "[ERROR] This script is only supported on Ubuntu or Debian." >&2
     exit 1
 fi
-
-# Update and Upgrade package managers repos
-echo "[INFO] Updating apt-get repositories"
-sudo apt-get update > /dev/null 2>&1
-
-echo "[INFO] Upgrading apt-get repositories"
-sudo apt-get upgrade -y > /dev/null 2>&1
-
 
 echo "[INFO] Installing envsubst utility"
 sudo apt-get install gettext-base -y > /dev/null 2>&1
@@ -95,7 +95,8 @@ TEMP_CONFIG_FILE=$(mktemp)
 echo "[INFO] Running 'envsubst' on nginx configuration template"
 
 export DOMAIN
-envsubst '$DOMAIN' < "$NGINX_CONFIG_TEMPLATE" >  "$TEMP_CONFIG_FILE"
+export PORT
+envsubst '$DOMAIN $PORT' < "$NGINX_CONFIG_TEMPLATE" >  "$TEMP_CONFIG_FILE"
 ENVSUBST_STATUS=$?
 
 if [ "$ENVSUBST_STATUS" -ne 0 ]; then
